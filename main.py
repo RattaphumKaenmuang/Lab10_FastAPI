@@ -155,12 +155,6 @@ def init_db():
     flight_instance1 = FlightInstance(flight1, aircraft1, "2021-01-01")
     flight_instance2 = FlightInstance(flight2, aircraft2, "2021-01-01")
     
-    airport_system.add_aircraft(aircraft1)
-    airport_system.add_aircraft(aircraft2)
-    
-    airport_system.add_flight(flight1)
-    airport_system.add_flight(flight2)
-    
     for i in range(0, 6):
         for j in range(1, 11):
             alphabet = "ABCDEF"
@@ -178,6 +172,12 @@ def init_db():
     
     reservation1 = Reservation(passenger1, flight1, "2021-01-01")
     reservation2 = Reservation(passenger2, flight1, "2021-01-01")
+    
+    airport_system.add_aircraft(aircraft1)
+    airport_system.add_aircraft(aircraft2)
+    
+    airport_system.add_flight(flight1)
+    airport_system.add_flight(flight2)
     
     airport_system.add_reservation(reservation1)
     airport_system.add_reservation(reservation2)
