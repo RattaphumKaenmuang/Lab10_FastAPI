@@ -23,11 +23,15 @@ class AirportSystem:
     def get_reservation_list():
         return AirportSystem.__reservation_list
 
-    def check_in(booking_reference, lastname):
+    def check_in(booking_reference, first_name, middle_name, lastname):
         a = []
-        for i in range(len(AirportSystem.get_passenger_from_name(booking_reference, lastname).seat)):
-            a.append(AirportSystem.create_boarding_pass(AirportSystem.search_reservation_from_reference(booking_reference), AirportSystem.get_passenger_from_name(booking_reference, lastname), i))
-        return a
+        passenger = AirportSystem.get_passenger_from_name(booking_reference, first_name, middle_name, lastname)
+        seat = passenger.seat
+        reservation = AirportSystem.search_reservation_from_reference(booking_reference)
+        for i in range(len(seat)):
+            a.append(AirportSystem.create_boarding_pass(reservation, passenger, i))
+        print(a)
+        return a #boarding_pass
     
     def add_airport(airport):
         return AirportSystem.__airport_list.append(airport)
@@ -552,10 +556,10 @@ def see_seat(froml : str, to : str, date : str, depart_time : str, arrive_time :
 
 @app.put("/select_seat")
 def select_seat(booking_reference : str, lastname : str, seat : str, return_seat : Optional[str] = None):
-    AirportSystem.choose_seat(AirportSystem.get_passenger_from_name(booking_reference, lastname), AirportSystem.search_reservation_from_reference(booking_reference).flight_instances[0], seat)
+    AirportSystem.choose_seat(AirportSystem.get_passenger_from_name(booking_reference, first_name, middle_name, lastname), AirportSystem.search_reservation_from_reference(booking_reference).flight_instances[0], seat)
     if return_seat != None:
-        AirportSystem.choose_seat(AirportSystem.get_passenger_from_name(booking_reference, lastname), AirportSystem.search_reservation_from_reference(booking_reference).flight_instances[1], return_seat)
-    return AirportSystem.get_passenger_from_name(booking_reference, lastname)
+        AirportSystem.choose_seat(AirportSystem.get_passenger_from_name(booking_reference, first_name, middle_name, lastname), AirportSystem.search_reservation_from_reference(booking_reference).flight_instances[1], return_seat)
+    return AirportSystem.get_passenger_from_name(booking_reference, first_name, middle_name, lastname)
 
 @app.get("/payment_credit")
 def pay_by_credit(method: str, detail: dict) :
@@ -570,8 +574,8 @@ def pay_by_qr(method: str, detail: dict) :
         return qr1.pay()
 
 @app.get("/boarding_pass")
-def board_pass(booking_reference : str, lastname : str):
-    return AirportSystem.check_in(booking_reference, lastname)
+def board_pass(booking_reference : str, first_name : str, middle_name : str, last_name : str):
+    return AirportSystem.check_in(booking_reference, first_name, middle_name, last_name)
     
 @app.get("/see_reservation")
 def show_reservation(booking_reference : str) :
