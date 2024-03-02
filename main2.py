@@ -96,8 +96,8 @@ class AirportSystem:
     def create_passenger(title, first_name, middle_name, last_name, birth_date, phone_number, email):
         return Passenger(title, first_name, middle_name, last_name, birth_date, phone_number, email)
     
-    def get_flight_seat_list(flight):
-        return flight.flight_seats
+    def get_flight_seat_list(flight_instance):
+        return flight_instance.flight_seats
     
     def choose_seat(passenger, flight, seat):
         for i in flight.flight_seats:
@@ -564,7 +564,10 @@ def new_passenger(booking_reference : str, title : str, firstname : str, lastnam
 
 @app.get("/see_seat")
 def see_seat(froml : str, to : str, date : str, depart_time : str, arrive_time : str):
-    return AirportSystem.get_flight_seat_list(AirportSystem.choose_flight(AirportSystem.check_flight_instance(froml, to, date) , depart_time, arrive_time))
+    flight_instance_matches = AirportSystem.check_flight_instance(froml, to, date)
+    flight_instance = AirportSystem.choose_flight(flight_instance_matches, depart_time, arrive_time)
+    print(flight_instance)
+    return AirportSystem.get_flight_seat_list(flight_instance)
 
 @app.put("/select_seat")
 def select_seat(booking_reference : str, first_name : str, middle_name : str, last_name : str, flight_seat : str, return_seat : Optional[str] = None):
