@@ -1,0 +1,15 @@
+#seatsContainer {
+    display: flexbox;
+    flex-direction: column;
+    align-items: center;
+    column-count: 6;
+    column-gap: 40px;
+}
+
+#seatsContainer .seat_button{
+    border: 1px solid black;
+    padding: 5px;
+    text-align: center;
+    cursor: pointer;
+    
+}
