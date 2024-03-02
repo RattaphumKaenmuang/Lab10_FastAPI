@@ -32,7 +32,8 @@ class AirportSystem:
     def add_airport(airport):
         return AirportSystem.__airport_list.append(airport)
 
-    def create_reservation(reservation):
+    def create_reservation(booking_reference):
+        reservation = Reservation(booking_reference)
         if reservation not in AirportSystem.__reservation_list:
             AirportSystem.__reservation_list.append(reservation)
             return reservation
@@ -50,7 +51,7 @@ class AirportSystem:
 
     def create_boarding_pass(reservation, passenger, returnl = 0):
         reservation.boarding_pass = BoardingPass(reservation, passenger, returnl)
-        return BoardingPass(reservation, passenger, returnl)
+        return BoardingPass(reservation, passenger, returnl) #return for checking in swagger
     
     def get_flight_instance_list():
         return AirportSystem.__flight_instance_list
@@ -87,7 +88,7 @@ class AirportSystem:
     def create_passenger(title, first_name, middle_name, last_name, birth_date, phone_number, email):
         return Passenger(title, first_name, middle_name, last_name, birth_date, phone_number, email)
     
-    def check_seat(flight):
+    def get_flight_seat_list(flight):
         return flight.flight_seats
     
     def choose_seat(passenger, flight, seat):
@@ -124,7 +125,8 @@ class AirportSystem:
         
     def create_admin(title, firstname, middlename, lastname, birthday, phone_number, email):
         new_admin = Admin(title, firstname, middlename, lastname, birthday, phone_number, email)
-        return AirportSystem.__admin_list.append(new_admin)
+        AirportSystem.__admin_list.append(new_admin)
+        return new_admin #return for checking in swagger
 
     def check_admin(lastname):
         for i in AirportSystem.__admin_list:
@@ -138,25 +140,31 @@ class AirportSystem:
         for i in AirportSystem.__admin_list:
             if i == admin:
                 AirportSystem.__flight_instance_list.append(flight_instance)
+                return flight_instance #return for checking in swagger
+        return "Not an admin, cannot create flight instance."
 
     def create_flight(flight):
         AirportSystem.__flight_list.append(flight)
+        return flight #return for checking in swagger
 
     def aircraft_list():
         return AirportSystem.__aircraft_list
 
     def create_aircraft(aircraft):
         AirportSystem.__aircraft_list.append(aircraft)
+        return aircraft #return for checking in swagger
 
-    def check_flight_instance_from_flight_number(flight_number):
+    def get_flight_instance_from_flight_number(flight_number):
         for i in AirportSystem.__flight_list:
             if i.flight_number == flight_number:
-                return i
-            
-    def check_aircraft_from_aircraft_number(aircraft_number):
+                return i #return for checking in swagger
+        return "Flight not found"
+    
+    def get_aircraft_from_aircraft_number(aircraft_number):
         for i in AirportSystem.__aircraft_list:
             if i.aircraft_number == aircraft_number:
-                return i
+                return i #return for checking in swagger
+        return "Aircraft not found"
 
 class Reservation:
     def __init__(self, booking_reference):
@@ -504,8 +512,8 @@ def all_aircraft():
 
 @app.post("/create_flight_instance")
 def create_flight_instance(lastname : str, flight_number : str, aircraft_number : str, time_departure : str, time_arrival : str, date : str, cost : float):
-    flight = AirportSystem.check_flight_instance_from_flight_number(flight_number)
-    return AirportSystem.create_flight_instance(AirportSystem.check_admin(lastname), FlightInstance(flight.froml, flight.to, flight.flight_number, time_departure, time_arrival, AirportSystem.check_aircraft_from_aircraft_number(aircraft_number), date, cost))
+    flight = AirportSystem.get_flight_instance_from_flight_number(flight_number)
+    return AirportSystem.create_flight_instance(AirportSystem.check_admin(lastname), FlightInstance(flight.froml, flight.to, flight.flight_number, time_departure, time_arrival, AirportSystem.get_aircraft_from_aircraft_number(aircraft_number), date, cost))
 
 
 @app.get("/all_reservation")
@@ -514,7 +522,7 @@ def all_reservation():
 
 @app.post("/reservation")
 def new_reservation(booking_reference : str):
-    return AirportSystem.create_reservation(Reservation(booking_reference))
+    return AirportSystem.create_reservation(booking_reference)
 
 @app.get("/all_flight_instance")
 def all_flight_instance():
@@ -540,9 +548,9 @@ def new_passenger(booking_reference : str, title : str, firstname : str, lastnam
 
 @app.get("/see_seat")
 def see_seat(froml : str, to : str, date : str, depart_time : str, arrive_time : str):
-    return AirportSystem.check_seat(AirportSystem.choose_flight(AirportSystem.check_flight_instance(froml, to, date) , depart_time, arrive_time))
+    return AirportSystem.get_flight_seat_list(AirportSystem.choose_flight(AirportSystem.check_flight_instance(froml, to, date) , depart_time, arrive_time))
 
-@app.post("/select_seat")
+@app.put("/select_seat")
 def select_seat(booking_reference : str, lastname : str, seat : str, return_seat : Optional[str] = None):
     AirportSystem.choose_seat(AirportSystem.get_passenger_from_name(booking_reference, lastname), AirportSystem.search_reservation_from_reference(booking_reference).flight_instances[0], seat)
     if return_seat != None:
