@@ -25,8 +25,8 @@ class AirportSystem:
 
     def check_in(booking_reference, lastname):
         a = []
-        for i in range(len(AirportSystem.check_passenger(booking_reference, lastname).seat)):
-            a.append(AirportSystem.create_boarding_pass(AirportSystem.check_reservation(booking_reference), AirportSystem.check_passenger(booking_reference, lastname), i))
+        for i in range(len(AirportSystem.get_passenger_from_name(booking_reference, lastname).seat)):
+            a.append(AirportSystem.create_boarding_pass(AirportSystem.search_reservation_from_reference(booking_reference), AirportSystem.get_passenger_from_name(booking_reference, lastname), i))
         return a
     
     def add_airport(airport):
@@ -44,7 +44,7 @@ class AirportSystem:
                 return i
             
     def get_passenger_from_name(booking_reference, first_name, middle_name, last_name):
-        for i in AirportSystem.check_reservation(booking_reference).passengers:
+        for i in AirportSystem.search_reservation_from_reference(booking_reference).passengers:
             if i.first_name == first_name and i.middle_name == middle_name and i.last_name == last_name:
                 return i
 
@@ -510,7 +510,7 @@ def create_flight_instance(lastname : str, flight_number : str, aircraft_number 
 
 @app.get("/all_reservation")
 def all_reservation():
-    return AirportSystem.reservation_list()
+    return AirportSystem.get_reservation_list()
 
 @app.post("/reservation")
 def new_reservation(booking_reference : str):
@@ -528,15 +528,15 @@ def see_flight_instance(froml : str, to : str, date_depart : str, return_depart 
 
 @app.post("/select_flight_instance")
 def select_flight_instance(booking_reference : str, froml : str, to : str, date : str, depart_time : str, arrive_time : str, return_date : Optional[str] = None, return_depart_time : Optional[str] = None, return_arrive_time : Optional[str] = None):
-    AirportSystem.check_reservation(booking_reference).flight_instances = AirportSystem.choose_flight(AirportSystem.check_flight_instance(froml, to, date) , depart_time, arrive_time)
+    AirportSystem.search_reservation_from_reference(booking_reference).flight_instances = AirportSystem.choose_flight(AirportSystem.check_flight_instance(froml, to, date) , depart_time, arrive_time)
     if return_date != None:
-        AirportSystem.check_reservation(booking_reference).flight_instances = AirportSystem.choose_flight(AirportSystem.check_flight_instance(to, froml, date) , return_depart_time, return_arrive_time)
-    return AirportSystem.check_reservation(booking_reference)
+        AirportSystem.search_reservation_from_reference(booking_reference).flight_instances = AirportSystem.choose_flight(AirportSystem.check_flight_instance(to, froml, date) , return_depart_time, return_arrive_time)
+    return AirportSystem.search_reservation_from_reference(booking_reference)
 
 @app.post("/passenger")
 def new_passenger(booking_reference : str, title : str, firstname : str, lastname : str, birthday : str, phone_number : str, email : str, middlename : Optional[str] = None):
-    AirportSystem.check_reservation(booking_reference).passengers = AirportSystem.create_passenger(title, firstname, middlename, lastname, birthday, phone_number, email)
-    return AirportSystem.check_reservation(booking_reference)
+    AirportSystem.search_reservation_from_reference(booking_reference).passengers = AirportSystem.create_passenger(title, firstname, middlename, lastname, birthday, phone_number, email)
+    return AirportSystem.search_reservation_from_reference(booking_reference)
 
 @app.get("/see_seat")
 def see_seat(froml : str, to : str, date : str, depart_time : str, arrive_time : str):
@@ -544,10 +544,10 @@ def see_seat(froml : str, to : str, date : str, depart_time : str, arrive_time :
 
 @app.post("/select_seat")
 def select_seat(booking_reference : str, lastname : str, seat : str, return_seat : Optional[str] = None):
-    AirportSystem.choose_seat(AirportSystem.check_passenger(booking_reference, lastname), AirportSystem.check_reservation(booking_reference).flight_instances[0], seat)
+    AirportSystem.choose_seat(AirportSystem.get_passenger_from_name(booking_reference, lastname), AirportSystem.search_reservation_from_reference(booking_reference).flight_instances[0], seat)
     if return_seat != None:
-        AirportSystem.choose_seat(AirportSystem.check_passenger(booking_reference, lastname), AirportSystem.check_reservation(booking_reference).flight_instances[1], return_seat)
-    return AirportSystem.check_passenger(booking_reference, lastname)
+        AirportSystem.choose_seat(AirportSystem.get_passenger_from_name(booking_reference, lastname), AirportSystem.search_reservation_from_reference(booking_reference).flight_instances[1], return_seat)
+    return AirportSystem.get_passenger_from_name(booking_reference, lastname)
 
 @app.get("/payment_credit")
 def pay_by_credit(method: str, detail: dict) :
@@ -572,7 +572,7 @@ def show_reservation(booking_reference : str) :
 
 @app.post("/service")
 def service (booking_reference: str, MoreBaggage_kilo : Optional[int] = None, Insurance_ : Optional[str] = None):
-    passenger = AirportSystem.check_passenger
+    passenger = AirportSystem.get_passenger_from_name()
     if MoreBaggage_kilo != None :
         passenger.extra_service = MoreBaggage(int(MoreBaggage_kilo)*300,MoreBaggage_kilo)
     if Insurance_ != None :
