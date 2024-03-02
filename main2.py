@@ -37,11 +37,14 @@ class AirportSystem:
         return AirportSystem.__airport_list.append(airport)
 
     def create_reservation(booking_reference):
+        for r in AirportSystem.__reservation_list:
+            if r.booking_reference == booking_reference:
+                return "Reservation already exists"
+        
         reservation = Reservation(booking_reference)
-        if reservation not in AirportSystem.__reservation_list:
-            AirportSystem.__reservation_list.append(reservation)
-            return reservation
-        return "Reservation already exists"
+        AirportSystem.__reservation_list.append(reservation)
+        return reservation
+        
     
     def search_reservation_from_reference(booking_reference):
         for i in AirportSystem.__reservation_list:
@@ -443,8 +446,7 @@ class Insurance(Service):
         super().__init__(price)
         self.__status = have_or_not
 
-class MoreBaggage(Service):
-    
+class MoreBaggage(Service):  
     def __init__(self, price, weight):
         super().__init__(price)
         self.__weight = weight
