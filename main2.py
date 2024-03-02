@@ -20,7 +20,7 @@ class AirportSystem:
     def get_payment_method() :
         return Airport.__payment_method_list
 
-    def reservation_list():
+    def get_reservation_list():
         return AirportSystem.__reservation_list
 
     def check_in(booking_reference, lastname):
@@ -33,14 +33,17 @@ class AirportSystem:
         return AirportSystem.__airport_list.append(airport)
 
     def create_reservation(reservation):
-        return AirportSystem.__reservation_list.append(reservation)
+        if reservation not in AirportSystem.__reservation_list:
+            AirportSystem.__reservation_list.append(reservation)
+            return reservation
+        return "Reservation already exists"
     
-    def check_reservation(booking_reference):
+    def search_reservation_from_reference(booking_reference):
         for i in AirportSystem.__reservation_list:
             if i.booking_reference == booking_reference:
                 return i
             
-    def check_passenger(booking_reference, first_name, middle_name, last_name):
+    def get_passenger_from_name(booking_reference, first_name, middle_name, last_name):
         for i in AirportSystem.check_reservation(booking_reference).passengers:
             if i.first_name == first_name and i.middle_name == middle_name and i.last_name == last_name:
                 return i
@@ -49,18 +52,21 @@ class AirportSystem:
         reservation.boarding_pass = BoardingPass(reservation, passenger, returnl)
         return BoardingPass(reservation, passenger, returnl)
     
-    def flight_instance_list():
+    def get_flight_instance_list():
         return AirportSystem.__flight_instance_list
     
     def check_flight_instance(froml, to, date_depart, date_return = None):
         flight_list = []
+        
         for i in AirportSystem.__flight_instance_list:
             if i.froml.name.upper() == froml.upper() and i.to.name.upper() == to.upper() and i.date == date_depart:
                 flight_list.append(i)
+                
         if date_return != None:
             for i in AirportSystem.__flight_instance_list:
                 if i.froml.name.upper() == to.upper() and i.to.name.upper() == froml.upper() and i.date == date_return:
                     flight_list.append(i)
+        
         return flight_list
     
     def get_detail_of_flight(list_flight):
@@ -78,8 +84,8 @@ class AirportSystem:
             if i.time_departure == depart_time and i.time_arrival == arrive_time:
                 return i
     
-    def create_passenger(title, firstname, middlename, lastname, birthday, phone_number, email):
-        return Passenger(title, firstname, middlename, lastname, birthday, phone_number, email)
+    def create_passenger(title, first_name, middle_name, last_name, birth_date, phone_number, email):
+        return Passenger(title, first_name, middle_name, last_name, birth_date, phone_number, email)
     
     def check_seat(flight):
         return flight.flight_seats
@@ -112,9 +118,8 @@ class AirportSystem:
         for reservation in AirportSystem.__reservation_list :
             if reservation.booking_reference == booking_reference :
                 return reservation
-
             
-    def admin_list():
+    def get_admin_list():
         return AirportSystem.__admin_list
         
     def create_admin(title, firstname, middlename, lastname, birthday, phone_number, email):
