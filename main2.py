@@ -138,7 +138,7 @@ class AirportSystem:
 
     def check_admin(lastname):
         for i in AirportSystem.__admin_list:
-            if i.lastname == lastname:
+            if i.last_name == lastname:
                 return i
             
     def flight_list():
@@ -225,26 +225,33 @@ class Reservation:
 
     @property
     def flight_instance_list(self):
-        return self.__flight_instances
+        return self.__flight_instance_list
     
     @flight_instance_list.setter
     def flight_instance_list(self, flight):
         self.__flight_instance_list.append(flight)
 
-
 class User:
-    def __init__(self, title, firstname, middlename, lastname, birthday, phone_number, email):
-        self.__title = title
-        self.__firstname = firstname
-        self.__middlename = middlename
-        self.__lastname = lastname
+    def __init__(self, title, first_name, middle_name, last_name, birthday, phone_number, email):
+        self._title = title
+        self._first_name = first_name
+        self._middle_name = middle_name
+        self._last_name = last_name
         self.__birthday = birthday
         self.__phone_number = phone_number
         self.__email = email
-        
+    
     @property
-    def lastname(self):
-        return self.__lastname
+    def first_name(self):
+        return self._first_name
+    
+    @property
+    def middle_name(self):
+        return self._middle_name
+    
+    @property
+    def last_name(self):
+        return self._last_name
     
     @property
     def title(self):
@@ -252,13 +259,13 @@ class User:
     
     @property
     def name(self):
-        if self.__middlename:
-            return self.__firstname + " " + self.__middlename + " " + self.__lastname
-        return self.__firstname + " " + self.__lastname
+        if self.__middle_name:
+            return self.__first_name + " " + self.__middle_name + " " + self.__last_name
+        return self.__first_name + " " + self.__last_name
 
 class Passenger(User):
-    def __init__(self, title, firstname, middlename, lastname, birthday, phone_number, email):
-        super().__init__(title, firstname, middlename, lastname, birthday, phone_number, email)
+    def __init__(self, title, first_name, middle_name, last_name, birthday, phone_number, email):
+        super().__init__(title, first_name, middle_name, last_name, birthday, phone_number, email)
         self.__seat = []
         self.__extra_service = []
         
@@ -269,6 +276,18 @@ class Passenger(User):
     @seat.setter
     def seat(self, seat):
         self.__seat.append(seat)
+        
+    @property
+    def first_name(self):
+        return self._first_name
+    
+    @property
+    def middle_name(self):
+        return self._middle_name
+    
+    @property
+    def last_name(self):
+        return self._last_name
 
     @property
     def extra_service(self):
@@ -558,19 +577,18 @@ def select_flight_instance(booking_reference : str, froml : str, to : str, date 
     return reservation #return for checking in swagger
 
 @app.post("/passenger")
-def new_passenger(booking_reference : str, title : str, firstname : str, lastname : str, birthday : str, phone_number : str, email : str, middlename : Optional[str] = None):
-    AirportSystem.search_reservation_from_reference(booking_reference).passengers = AirportSystem.create_passenger(title, firstname, middlename, lastname, birthday, phone_number, email)
+def new_passenger(booking_reference : str, title : str, first_name : str, last_name : str, birthday : str, phone_number : str, email : str, middle_name : Optional[str] = None):
+    AirportSystem.search_reservation_from_reference(booking_reference).passengers = AirportSystem.create_passenger(title, first_name, middle_name, last_name, birthday, phone_number, email)
     return AirportSystem.search_reservation_from_reference(booking_reference)
 
 @app.get("/see_seat")
 def see_seat(froml : str, to : str, date : str, depart_time : str, arrive_time : str):
     flight_instance_matches = AirportSystem.check_flight_instance(froml, to, date)
     flight_instance = AirportSystem.choose_flight(flight_instance_matches, depart_time, arrive_time)
-    print(flight_instance)
     return AirportSystem.get_flight_seat_list(flight_instance)
 
 @app.put("/select_seat")
-def select_seat(booking_reference : str, first_name : str, middle_name : str, last_name : str, flight_seat : str, return_seat : Optional[str] = None):
+def select_seat(booking_reference : str, first_name : str, last_name : str, flight_seat : str, return_seat : Optional[str] = None, middle_name : Optional[str] = None):
     passenger = AirportSystem.get_passenger_from_name(booking_reference, first_name, middle_name, last_name)
     reservation = AirportSystem.search_reservation_from_reference(booking_reference)
     AirportSystem.choose_seat(passenger, reservation.flight_instance_list[0], flight_seat)
