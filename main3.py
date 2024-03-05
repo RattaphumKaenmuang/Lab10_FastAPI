@@ -61,19 +61,22 @@ class AirportSystem:
             flight_instances.append(flight_instance.convert_to_json())
         return flight_instances
     
-    def check_flight_instance(froml, to, date_depart, date_return = None):
-        flight_list = []
+    def check_flight_instance_matches(froml, to, date_depart, date_return = None):
+        departing_flight_instance = []
+        returning_flight_instance = []
 
+        #find flight_instance with the same from/to locations and date
         for flight_instance in AirportSystem.__flight_instance_list:
             if flight_instance.froml.name.upper() == froml.upper() and flight_instance.to.name.upper() == to.upper() and flight_instance.date == date_depart:
-                flight_list.append(flight_instance)
+                departing_flight_instance.append(flight_instance)
 
+        #find flight_instance with the same from/to locations and date but reversed (return flight)
         if date_return != None:
             for flight_instance in AirportSystem.__flight_instance_list:
                 if flight_instance.froml.name.upper() == to.upper() and flight_instance.to.name.upper() == froml.upper() and flight_instance.date == date_return:
-                    flight_list.append(flight_instance)
+                    returning_flight_instance.append(flight_instance)
 
-        return flight_list
+        return (departing_flight_instance, returning_flight_instance)
     
     def get_detail_of_flight(flight_instance_list):
             all_detail = []
@@ -87,13 +90,23 @@ class AirportSystem:
         
             return all_detail  
     
-    def choose_flight_instance(flight_instance_list, depart_time, arrive_time):
-        for flight_instance in flight_instance_list:
-            if flight_instance.time_departure == depart_time and flight_instance.time_arrival == arrive_time:
-                return flight_instance
+    def choose_flight_instance(booking_reference, froml, to, date_depart, depart_time, arrive_time, name, order, date_return = None):
+        flight_instance = None
+        flight_instance_matches = AirportSystem.check_flight_instance(froml, to, date_depart, date_return)
+        for f in flight_instance_matches:
+            if f.time_departure == depart_time and f.time_arrival == arrive_time:
+              flight_instance = f
+        reservation = AirportSystem.find_reservation(booking_reference)
+        passenger = AirportSystem.check_passenger(booking_reference, name)
+        
+        if reservation.flight_instances[order]:
+            reservation.flight_instances.remove(reservation.flight_instances[order])
+            reservation.flight_instances.insert(order, flight_instance)
+            
+        reservation.flight_instances = flight_instance #adding (using @property setter)
+        return reservation.flight_instances.convert_to_json() #for swagger checking: remove later
     
     def create_passenger(title, first_name, middle_name, last_name, birthday, phone_number, email):
-        
         return Passenger(title, first_name, middle_name, last_name, birthday, phone_number, email)
     
     def check_flight_seat(flight_seat):
@@ -102,17 +115,19 @@ class AirportSystem:
             flight_seats.append(seat.convert_to_json())        
         return flight_seats
 
-    def choose_flight_seat(passenger, flight_instance, seat_number):
-        # for p_flight_seat in passenger.seat:
-        #     for f_flight_seat in AirportSystem.
-        #     if flight_seat.seat_number ==
+    def choose_flight_seat(booking_reference : str, name : str, seat_number : str, flight_instance_order: int):
+        reservation = AirportSystem.find_reservation(booking_reference)
+        passenger = AirportSystem.check_passenger(booking_reference, name)
+        flight_instance = reservation.flight_instances[flight_instance_order]
+        new_flight_seat = flight_instance.get_flight_seat_from_seat_num(seat_number)
 
-        for flight_seat in flight_instance.flight_seats:
-            if seat_number == flight_seat.seat_number:
-                old_seat = flight_instance.get_flight_seat_from_seat_num()
-                old_seat.occupied = False
-                passenger.seat = flight_seat
-                flight_seat.occcupied = True
+        old_seat = flight_instance.get_flight_seat_from_seat_num(passenger.seat[flight_instance_order].seat_number)
+        
+        if old_seat:
+            old_seat.occupied = False
+            passenger.seat.remove(old_seat)
+        
+        reservation.sort_order()
         return passenger
     
     def show_reservation(booking_reference) :
@@ -188,7 +203,7 @@ class AirportSystem:
         aircrafts = []
         for aircraft in AirportSystem.__aircraft_list:
             aircrafts.append(aircraft.convert_to_json())
-        return 
+        return aircrafts
     
     def seat_data():
         seats_data = []
@@ -207,6 +222,7 @@ class AirportSystem:
     def create_aircraft(*aircraft_numbers):
         for aircraft_number in aircraft_numbers:
             aircraft = Aircraft(AirportSystem.seat_data(), aircraft_number)
+            print(aircraft)
             AirportSystem.__aircraft_list.append(aircraft)
         return aircraft
 
@@ -243,6 +259,12 @@ class Reservation:
         
         return self.__total_cost
 
+    def sort_order(self):
+        for passenger in self.__passengers:
+            passenger.seat.sort(key=lambda x: x[0])
+        for flight_instance in self.__flight_instances:
+            flight_instance.sort(key=lambda x: x[0])
+            
     @property 
     def total_cost(self) :
         return self.__total_cost
@@ -352,20 +374,22 @@ class User:
 class Passenger(User):
     def __init__(self, title, first_name, middle_name, last_name, birthday, phone_number, email):
         super().__init__(title, first_name, middle_name, last_name, birthday, phone_number, email)
-        self.__seat = []
+        self.__flight_seats = []
         self.__extra_service = []
         
     @property
-    def seat(self):
-        return self.__seat
+    def flight_seats(self):
+        return self.__flight_seats
     
-    @seat.setter
-    def seat(self, seat):
-        self.__seat.append(seat)
+    @flight_seats.setter
+    def seat(self, flight_seat, order):
+        if isinstance(order, int):
+            order = 0
+        self.__flight_seats.append((order, flight_seat))
 
     @property
     def extra_service(self):
-        return self.__extra_service
+        return self.__extra_services
 
     @extra_service.setter
     def extra_service(self, service):
@@ -506,7 +530,7 @@ class Aircraft:
         return self.__seats
 
     def convert_to_json(self):
-        return {"seats" : self.__seats ,
+        return {"seats_count" : len(self.__seats) ,
                 "aircraft_number" : self.__aircraft_number}
 
 class Airport:
@@ -640,21 +664,28 @@ for c in range(1,10):
             seat_category = happy_seat
         seats_data.append(Seats(seat_id, seat_category))
 
+def init_db():
+    AirportSystem.create_airport(Airport("Don Mueang", "[BKK]"))
+    AirportSystem.create_airport(Airport("Chiang Mai", "[CNX]"))
+    AirportSystem.create_airport(Airport("Phuket", "[BKK]"))
+    
+    AirportSystem.create_admin("Mr.", "John", "", "Doe", "1990-01-01", "0812345678", "a1@gmail.com")
 
-AirportSystem.create_airport(Airport("Don Mueang", "[BKK]"))
-AirportSystem.create_airport(Airport("Chiang Mai", "[CNX]"))
-AirportSystem.create_airport(Airport("Phuket", "[BKK]"))
+    AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[0], AirportSystem.get_airport_list()[1], "DD 712"))
+    AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[1], AirportSystem.get_airport_list()[0], "DD 721"))
 
-AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[0], AirportSystem.get_airport_list()[1], "DD 712"))
-AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[1], AirportSystem.get_airport_list()[0], "DD 721"))
+    AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[0], AirportSystem.get_airport_list()[2], "DD 813"))
+    AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[2], AirportSystem.get_airport_list()[0], "DD 831"))
 
-AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[0], AirportSystem.get_airport_list()[2], "DD 813"))
-AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[2], AirportSystem.get_airport_list()[0], "DD 831"))
+    AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[1], AirportSystem.get_airport_list()[2], "DD 823"))
+    AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[2], AirportSystem.get_airport_list()[1], "DD 832"))
+    
+    AirportSystem.create_flight_instance("B737-1", "DD 712", "B737-1", "08:00", "10:00", "01-01-2000", 1000)
+    
+    AirportSystem.create_reservation(Reservation("1234"))
+    
 
-AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[1], AirportSystem.get_airport_list()[2], "DD 823"))
-AirportSystem.create_flight(Flight(AirportSystem.get_airport_list()[2], AirportSystem.get_airport_list()[1], "DD 832"))
-
-AirportSystem.create_aircraft("B737-1", "B737-2", "B737-2")
+    AirportSystem.create_aircraft("B737-1", "B737-2", "B737-2")
 
 app = FastAPI()
 
@@ -716,7 +747,6 @@ def all_aircraft():
 def create_flight_instance(name : str, flight_number : str, aircraft_number : str, time_departure : str, time_arrival : str, date : str, cost : float):
     return AirportSystem.create_flight_instance(name, flight_number, aircraft_number, time_departure, time_arrival, date, cost)
 
-
 @app.get("/all_reservation", tags=["reservation"])
 def all_reservation():
     return AirportSystem.reservation_list()
@@ -729,12 +759,18 @@ def new_reservation(booking_reference : str):
 def all_flight_instance():
     return AirportSystem.flight_instance_list()
 
-@app.get("/see_flight_instance", tags=["flight"])
+@app.get("/see_flight_instance", tags=["flight"]) #
 def see_flight_instance(froml : str, to : str, date_depart : str, return_depart : Optional[str] = None):
     return AirportSystem.get_detail_of_flight(AirportSystem.check_flight_instance(froml, to, date_depart, return_depart))
 
-@app.post("/select_flight_instance", tags=["flight"])
-def select_flight_instance(booking_reference : str, froml : str, to : str, date : str, depart_time : str, arrive_time : str, return_date : Optional[str] = None, return_depart_time : Optional[str] = None, return_arrive_time : Optional[str] = None):
+@app.get("/flight_instance_matches", tags=["flight"])
+def get_flight_instances_matches(froml : str, to : str, depart_date : str, return_date : Optional[str] = None):
+    return AirportSystem.check_flight_instance(froml, to, depart_date, return_date)
+                                               
+@app.post("/select_flight_instance", tags=["flight"])  #
+def select_flight_instance(booking_reference : str, froml : str, to : str, date : str, depart_time : str, arrive_time : str, name: str, order: int, date_return: str):
+    return AirportSystem.choose_flight_instance(booking_reference, froml, to, date, depart_time, arrive_time, name, order, date_return)
+    
     # depart_flight_instance = AirportSystem.check_flight_instance(froml, to, date)
     # reservation = AirportSystem.find_reservation(booking_reference)
 
@@ -746,14 +782,15 @@ def select_flight_instance(booking_reference : str, froml : str, to : str, date 
     #         reservation.flight_instances = AirportSystem.choose_flight_instance(return_flight_instance, return_depart_time, return_arrive_time)
     
     # return reservation
-    if AirportSystem.check_flight_instance(froml, to, date) and AirportSystem.find_reservation(booking_reference):
-        AirportSystem.find_reservation(booking_reference).flight_instances = AirportSystem.choose_flight_instance(AirportSystem.check_flight_instance(froml, to, date), depart_time, arrive_time)
-
-        if return_date:
-            return_flight_instance = AirportSystem.check_flight_instance(to, froml, return_date)
-            AirportSystem.find_reservation(booking_reference).flight_instances = AirportSystem.choose_flight_instance(return_flight_instance, return_depart_time, return_arrive_time)
     
-    return AirportSystem.find_reservation(booking_reference).convert_to_json()
+    # if AirportSystem.check_flight_instance(froml, to, date) and AirportSystem.find_reservation(booking_reference):
+    #     AirportSystem.find_reservation(booking_reference).flight_instances = AirportSystem.choose_flight_instance(AirportSystem.check_flight_instance(froml, to, date), depart_time, arrive_time)
+
+    #     if return_date:
+    #         return_flight_instance = AirportSystem.check_flight_instance(to, froml, return_date)
+    #         AirportSystem.find_reservation(booking_reference).flight_instances = AirportSystem.choose_flight_instance(return_flight_instance, return_depart_time, return_arrive_time)
+    
+    # return AirportSystem.find_reservation(booking_reference).convert_to_json()
 
 @app.post("/passenger")
 def new_passenger(booking_reference : str, title : str, first_name : str, last_name : str, birthday : str, phone_number : str, email : str, middle_name : Optional[str] = None):
@@ -765,7 +802,7 @@ def see_seat(froml : str, to : str, date : str, depart_time : str, arrive_time :
     return AirportSystem.check_flight_seat(AirportSystem.choose_flight_instance(AirportSystem.check_flight_instance(froml, to, date) , depart_time, arrive_time).flight_seats)
 
 @app.post("/select_seat", tags=["seat"])
-def select_seat(booking_reference : str, name : str, seat : str, return_seat : Optional[str] = None):
+def select_seat(booking_reference : str, name : str, seat_number : str, order: int):
     # passenger = AirportSystem.check_passenger(booking_reference, name)
     # reservation = AirportSystem.find_reservation(booking_reference)
     # depart_flight_instance = reservation.flight_instances[0]
@@ -775,9 +812,7 @@ def select_seat(booking_reference : str, name : str, seat : str, return_seat : O
     #     return_flight_instance = reservation.flight_instances[1]
     #     AirportSystem.choose_flight_seat(passenger, return_flight_instance, return_seat)
     # return passenger
-    AirportSystem.choose_flight_seat(AirportSystem.check_passenger(booking_reference, name), AirportSystem.find_reservation(booking_reference).flight_instances[0], seat)
-    if return_seat != None:
-        AirportSystem.choose_flight_seat(AirportSystem.check_passenger(booking_reference, name), AirportSystem.find_reservation(booking_reference).flight_instances[1], return_seat)
+    AirportSystem.choose_flight_seat(booking_reference, name, seat_number, order)
     return AirportSystem.check_passenger(booking_reference, name).convert_to_json()
 
 @app.post("/payment_credit", tags=["payment"])
