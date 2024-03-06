@@ -270,12 +270,15 @@ class Reservation:
         for flight_instance in range(len(self.flight_instances)):
             self.__total_cost += self.flight_instances[flight_instance][1].cost * len(self.passengers)
 
-        for passenger in range(len(self.passengers)):
-            for seat in range(len(self.passengers[passenger].flight_seats)) :
+        for passenger in self.passengers:
+            for seat in self.passengers[passenger].flight_seats :
                 self.__total_cost += self.passengers[passenger].flight_seats[seat][1].seat_category.seat_price
                 
-            for service in range(len(self.passengers[passenger].extra_services)):
-                self.__total_cost += self.passengers[passenger].extra_services[service].price  
+            for service in self.passengers[passenger].extra_services:
+                if isinstance(service, Insurance):
+                    self.__total_cost += service.price
+                elif isinstance(service, MoreBaggage):
+                    self.__total_cost += self.passengers[passenger].extra_services[service].get_total_cost()
         
         return self.__total_cost
 
@@ -473,9 +476,9 @@ class Passenger(User):
 
     def add_extra_service(self, MoreBaggage_kilo, Insurance_):
         if MoreBaggage_kilo != None :
-            self.extra_services = MoreBaggage(int(MoreBaggage_kilo)*300, MoreBaggage_kilo)
+            self.extra_services = MoreBaggage(300, int(MoreBaggage_kilo))
         if Insurance_ != None :
-            self.extra_services = Insurance(1500, Insurance_)
+            self.extra_services = Insurance(1500)
 
     def convert_to_json(self):
         return {"title" : self.title,
@@ -702,27 +705,24 @@ class Qr(Payment):
 
 class Service:
     def __init__(self, price):
-        self.__price = int(price)
+        self.__price = float(price)
 
     @property
     def price(self) :
         return self.__price
 
 class Insurance(Service):
-    def __init__(self, price, have_or_not):
+    def __init__(self, price):
         super().__init__(price)
-        self.__status = have_or_not
-
-    @property
-    def insurance_status(self) :
-        return self.__status
     
 class MoreBaggage(Service):
-    
     def __init__(self, price, weight):
         super().__init__(price)
         self.__weight = weight
 
+    def get_total_cost(self):
+        return self.__price
+    
     @property
     def bag_weight(self) :
         return self.__weight
@@ -924,9 +924,9 @@ def board_pass(booking_reference : str, name : str, returnl : Optional[bool] = F
 def show_reservation(booking_reference : str) :
     return AirportSystem.show_reservation(booking_reference)
 
-@app.post("/service")
-def service (booking_reference: str, name : str,  MoreBaggage_kilo : Optional[int] = None, Insurance_ : Optional[str] = None):
-    AirportSystem.check_passenger(booking_reference, name).add_extra_service(MoreBaggage_kilo,Insurance_)
+@app.put("/apply_services", tags=["reservation"])
+def apply_services (booking_reference: str, name : str, moreBaggage_kilo : Optional[int] = None, insurance : Optional[bool] = None):
+    AirportSystem.check_passenger(booking_reference, name).add_extra_service(moreBaggage_kilo, insurance)
     return AirportSystem.check_passenger(booking_reference, name).extra_services
 
 if __name__ == "__main__":
