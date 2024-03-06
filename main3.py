@@ -159,15 +159,13 @@ class AirportSystem:
                 "birthday": passenger.birthday,
                 "phone_number": passenger.phone_number,
                 "email": passenger.email,
-                "seat": passenger.seat[0].seat_number if passenger.seat else None,
+                "seat": passenger.flight_seats[0].seat_number if passenger.flight_seats else None,
                 "extra_services": [
                     {
                         "service_name": service.__class__.__name__,
-                        "weight" : service.bag_weight if hasattr(service, "weight") else None,
+                        **({"weight": service.bag_weight} if hasattr(service, "bag_weight") else {}),
                         "price" : service.price if hasattr(service, "price") else None,
-                        "status" : service.insurance_status if hasattr(service, "have_or_not") else None
                     }
-
                     for service in passenger.extra_services
                 ]
             }
@@ -267,18 +265,18 @@ class Reservation:
 
     def calculate_total_cost(self):
         self.__total_cost = 0
-        for flight_instance in range(len(self.flight_instances)):
-            self.__total_cost += self.flight_instances[flight_instance][1].cost * len(self.passengers)
+        for flight_instance in self.flight_instances:
+            self.__total_cost += flight_instance[1].cost * len(self.passengers)
 
         for passenger in self.passengers:
-            for seat in self.passengers[passenger].flight_seats :
-                self.__total_cost += self.passengers[passenger].flight_seats[seat][1].seat_category.seat_price
+            for f_seat in passenger.flight_seats :
+                self.__total_cost += f_seat[1].seat_category.seat_price
                 
-            for service in self.passengers[passenger].extra_services:
+            for service in passenger.extra_services:
                 if isinstance(service, Insurance):
                     self.__total_cost += service.price
                 elif isinstance(service, MoreBaggage):
-                    self.__total_cost += self.passengers[passenger].extra_services[service].get_total_cost()
+                    self.__total_cost += service.get_total_cost()
         
         return self.__total_cost
 
@@ -721,7 +719,7 @@ class MoreBaggage(Service):
         self.__weight = weight
 
     def get_total_cost(self):
-        return self.__price
+        return self.price * self.__weight
     
     @property
     def bag_weight(self) :
